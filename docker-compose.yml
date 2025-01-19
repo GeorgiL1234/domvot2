@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=admin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin123
+    ports:
+      - "8080:8080"
+    command: start-dev
+    depends_on:
+      - database
+
+      environment:
+  - KEYCLOAK_URL=http://keycloak:8080
+  - KEYCLOAK_REALM=my-realm
+  - KEYCLOAK_CLIENT_ID=file-manager-app
+  - KEYCLOAK_CLIENT_SECRET=<Клиентски секрет>
+
+
+  database:
+    image: postgres:latest
+    container_name: keycloak-db
+    environment:
+      - POSTGRES_USER=keycloak
+      - POSTGRES_PASSWORD=keycloak123
+      - POSTGRES_DB=keycloak
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: ./app
+    dockerfile: Dockerfile
+    container_name: file-manager-app
+    environment:
+      - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=admin123
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=your-realm
+      - KEYCLOAK_CLIENT_ID=your-client-id
+      - KEYCLOAK_CLIENT_SECRET=your-client-secret
+    ports:
+      - "5000:5000"
+    depends_on:
+      - minio
+      - keycloak
+
+volumes:
+  minio-data:
+  keycloak-db-data:
